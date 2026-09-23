@@ -1,4 +1,4 @@
-"""Squared-error backpropagation, applied to MNIST."""
+"""Squared-error backpropagation for handwritten digit recognition."""
 
 from .network import NeuralNetwork
 

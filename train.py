@@ -1,5 +1,5 @@
 """
-Run the nine network-training steps on the official MNIST digits.
+Train a feedforward network on MNIST.
 
   1. Data preparation
   2. Design the network architecture
@@ -9,7 +9,7 @@ Run the nine network-training steps on the official MNIST digits.
   6. Train the network
   7. Test the network
   8. Store the network parameters
-  9. Use the trained network for an application
+  9. Use the trained network
 """
 
 from __future__ import annotations
@@ -26,18 +26,17 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 
-from mnist_backprop.data import OFFICIAL_DIR, load_mnist
+from mnist_backprop.data import DATASET_PAGE, load_mnist
 from mnist_backprop.network import NeuralNetwork, check_gradients
 
-# Architecture chosen in step 2. One hidden layer is enough for these digits.
 LAYER_SIZES = [784, 128, 10]
-# Step size for the weight update w <- w - alpha * dJ/dw.
 ALPHA = 1.0
 BATCH_SIZE = 128
 MAX_EPOCHS = 20
 PATIENCE = 3
 MIN_IMPROVEMENT = 1e-4
 SEED = 0
+DEMO_COUNT = 20
 
 
 def heading(step: int, title: str) -> None:
@@ -53,11 +52,11 @@ def parameter_count(layer_sizes: list[int]) -> int:
     return total
 
 
-def minibatches(x, y, labels, batch_size, rng):
+def minibatches(x, y, batch_size, rng):
     order = rng.permutation(x.shape[1])
     for start in range(0, x.shape[1], batch_size):
         chosen = order[start : start + batch_size]
-        yield x[:, chosen], y[:, chosen], labels[chosen]
+        yield x[:, chosen], y[:, chosen]
 
 
 def plot_cost(history: list[dict], path: str) -> None:
@@ -67,7 +66,7 @@ def plot_cost(history: list[dict], path: str) -> None:
     plt.plot(epochs, [row["test_cost"] for row in history], label="test cost J")
     plt.xlabel("pass through the training set")
     plt.ylabel("cost J")
-    plt.title("Squared-error cost while the weights are trained")
+    plt.title("Squared-error cost during training")
     plt.legend()
     plt.tight_layout()
     plt.savefig(path, dpi=140)
@@ -75,7 +74,6 @@ def plot_cost(history: list[dict], path: str) -> None:
 
 
 def plot_application(images, labels, predictions, path: str) -> None:
-    """Show the application: a picture goes in, a digit comes out."""
     count = len(labels)
     columns = 5
     rows = int(np.ceil(count / columns))
@@ -92,84 +90,88 @@ def plot_application(images, labels, predictions, path: str) -> None:
         )
     for axis in axes.ravel()[count:]:
         axis.axis("off")
-    figure.suptitle("Application: read a handwritten digit", fontsize=13)
+    figure.suptitle("Read a handwritten digit", fontsize=13)
     figure.tight_layout()
     figure.savefig(path, dpi=140)
     plt.close(figure)
 
 
-def main() -> None:
-    root = os.path.dirname(os.path.abspath(__file__))
-    output_dir = os.path.join(root, "outputs")
-    os.makedirs(output_dir, exist_ok=True)
-
+def prepare_data() -> dict[str, np.ndarray]:
+    """Step 1. Download MNIST, scale pixels, and encode labels."""
     heading(1, "Data preparation")
-    print(f"Reading the official files in:\n  {OFFICIAL_DIR}")
-    data = load_mnist(OFFICIAL_DIR)
-    x_train, y_train = data["x_train"], data["y_train"]
-    x_test, y_test = data["x_test"], data["y_test"]
-    labels_train, labels_test = data["labels_train"], data["labels_test"]
-    print(f"Training images: {x_train.shape[1]}")
-    print(f"Test images:     {x_test.shape[1]}")
-    print("Each image is 28 by 28. Pixel values 0-255 are divided by 255,")
-    print("so every input is between 0 and 1, then flattened to 784 numbers.")
-    print("Each label becomes a length-10 target. Digit 3 is")
-    print("  [0, 0, 0, 1, 0, 0, 0, 0, 0, 0]")
-    print("The test images are kept aside and are not used to change weights.")
+    print("MNIST: handwritten digits, Yann LeCun, Corinna Cortes,")
+    print("and Christopher J. C. Burges.")
+    print(DATASET_PAGE)
+    data = load_mnist()
+    print(f"Training images: {data['x_train'].shape[1]}")
+    print(f"Test images:     {data['x_test'].shape[1]}")
+    print("Each image is 28 by 28. Pixels are divided by 255 and flattened to 784 inputs.")
+    print("Each label becomes a length-10 target. Digit 3 is [0, 0, 0, 1, 0, 0, 0, 0, 0, 0].")
+    print("Test images are held out from the weight updates.")
+    return data
 
+
+def describe_architecture() -> None:
+    """Step 2. State the layer sizes and the number of parameters."""
     heading(2, "Design the network architecture")
-    print("Input layer:  784 neurons, one per pixel.")
-    print("Hidden layer: 128 neurons with a sigmoid activation.")
-    print("Output layer: 10 neurons, also sigmoid, one per digit 0-9.")
-    print("A neuron computes z = (weights · inputs) + bias, then a = sigmoid(z).")
-    print(f"Trainable numbers: {parameter_count(LAYER_SIZES)}")
+    print("Input layer:  784 units, one per pixel.")
+    print("Hidden layer: 128 units, sigmoid.")
+    print("Output layer: 10 units, sigmoid, one per digit.")
+    print("Each unit computes z = (weights · inputs) + bias, then a = sigmoid(z).")
+    print(f"Trainable parameters: {parameter_count(LAYER_SIZES)}")
 
+
+def initialize_parameters() -> NeuralNetwork:
+    """Step 3. Draw the initial weights and set the learning rate."""
     heading(3, "Initialize parameters")
     network = NeuralNetwork(LAYER_SIZES, alpha=ALPHA, seed=SEED)
     print(f"Learning rate alpha = {ALPHA}")
-    print("Weights start as small random numbers, scaled by 1/sqrt(inputs),")
-    print("so the sigmoid is not stuck near 0 or 1 at the beginning.")
+    print("Weights are drawn from a normal distribution with scale 1/sqrt(inputs).")
     print("Biases start at 0.")
     for index, weight in enumerate(network.weights):
         print(
-            f"  layer {index + 1}: weight matrix {tuple(weight.shape)}, "
-            f"bias vector {tuple(network.biases[index].shape)}"
+            f"  layer {index + 1}: weights {tuple(weight.shape)}, "
+            f"biases {tuple(network.biases[index].shape)}"
         )
+    return network
 
+
+def define_cost(network: NeuralNetwork, x: np.ndarray, y: np.ndarray, label: int) -> None:
+    """Step 4. Squared error between the network output and the target."""
     heading(4, "Define the cost function")
-    print("For one image, the error of output neuron j is e_j = a_j - y_j.")
-    print("The cost is J = 1/2 * sum_j e_j^2.")
-    print("On a group of images, J is the average of those per-image costs.")
-    print("Training changes the weights to make J smaller.")
-    sample_activations, sample_output = network.forward(x_train[:, :1])
-    sample_cost = network.cost(sample_output, y_train[:, :1])
-    print(
-        f"Before any training, image 0 (digit {int(labels_train[0])}) "
-        f"has cost J = {sample_cost:.4f}."
-    )
+    print("Error of output unit j:  e_j = a_j - y_j")
+    print("Cost of one image:        J = (1/2) * sum_j e_j^2")
+    print("Cost of a batch:          the mean of the per-image costs.")
+    _, output = network.forward(x[:, :1])
+    sample_cost = network.cost(output, y[:, :1])
+    print(f"Before training, image 0 (digit {label}) has J = {sample_cost:.4f}.")
 
+
+def define_evaluation(network: NeuralNetwork, x: np.ndarray, labels: np.ndarray) -> None:
+    """Step 5. Accuracy is the fraction of correct digit readings."""
     heading(5, "Define the evaluation index")
-    print("The cost says how far the outputs are from the targets.")
-    print("The evaluation index is accuracy: the fraction of images whose")
-    print("largest output neuron matches the true digit.")
-    print("Accuracy is how we judge the finished network. It is not the")
-    print("quantity backpropagation differentiates.")
-    initial_accuracy = network.accuracy(x_test[:, :1000], labels_test[:1000])
-    print(f"Accuracy on the first 1000 test images, before training: {initial_accuracy:.2%}")
+    print("Accuracy is the fraction of images whose largest output matches the digit.")
+    print("Training minimizes J. The finished network is scored by accuracy.")
+    initial = network.accuracy(x[:, :1000], labels[:1000])
+    print(f"Accuracy on the first 1000 test images, before training: {initial:.2%}")
 
+
+def train_network(network: NeuralNetwork, data: dict[str, np.ndarray], output_dir: str):
+    """Step 6. Forward, cost, backpropagation, weight update, repeated."""
     heading(6, "Train the network")
-    print("Checking that the computed gradient matches a numerical derivative...")
+    print("Comparing the analytic gradient with a numerical derivative.")
     gradient_error = check_gradients()
     print(f"  largest relative difference: {gradient_error:.3e}")
     if gradient_error > 1e-4:
         raise RuntimeError("the backward pass does not match the cost function")
 
-    print("Each update uses a mini-batch of 128 images.")
-    print("Forward pass, cost, backpropagation, then")
-    print("  weight <- weight - alpha * (dJ / d weight).")
-    print("That is the same update as the lecture, applied to 128 images at a time")
-    print("so the full training set can be processed.")
+    print(f"Each update uses {BATCH_SIZE} images:")
+    print("  forward pass, cost J, backpropagation,")
+    print("  W <- W - alpha * dJ/dW.")
 
+    x_train, y_train = data["x_train"], data["y_train"]
+    x_test, y_test = data["x_test"], data["y_test"]
+    labels_train, labels_test = data["labels_train"], data["labels_test"]
     rng = np.random.default_rng(SEED)
     history: list[dict] = []
     best_cost = float("inf")
@@ -179,9 +181,7 @@ def main() -> None:
     for epoch in range(1, MAX_EPOCHS + 1):
         batch_costs = [
             network.train_batch(x_batch, y_batch)
-            for x_batch, y_batch, _ in minibatches(
-                x_train, y_train, labels_train, BATCH_SIZE, rng
-            )
+            for x_batch, y_batch in minibatches(x_train, y_train, BATCH_SIZE, rng)
         ]
         _, test_output = network.forward(x_test)
         row = {
@@ -204,52 +204,80 @@ def main() -> None:
             quiet_epochs += 1
             if quiet_epochs >= PATIENCE:
                 stopped_early = True
-                print("  The cost has stopped falling, so training stops.")
+                print("  The cost has leveled off, so training stops.")
                 break
 
     cost_plot = os.path.join(output_dir, "cost_curve.png")
     plot_cost(history, cost_plot)
+    return history, gradient_error, stopped_early
 
+
+def test_network(network: NeuralNetwork, data: dict[str, np.ndarray], history: list[dict]) -> dict:
+    """Step 7. Score the network on images that did not update the weights."""
     heading(7, "Test the network")
-    test_accuracy = history[-1]["test_accuracy"]
-    test_cost = history[-1]["test_cost"]
-    predictions = network.predict(x_test)
-    mistakes = int(np.sum(predictions != labels_test))
-    print("The test images were not used in the weight updates.")
-    print(f"Test cost J:  {test_cost:.4f}")
-    print(f"Test accuracy: {test_accuracy:.2%}")
-    print(f"Wrong digits: {mistakes} out of {labels_test.shape[0]}")
+    labels_test = data["labels_test"]
+    mistakes = int(np.sum(network.predict(data["x_test"]) != labels_test))
+    result = {
+        "test_cost": history[-1]["test_cost"],
+        "test_accuracy": history[-1]["test_accuracy"],
+        "train_cost": history[-1]["train_cost"],
+        "train_accuracy": history[-1]["train_accuracy"],
+        "mistakes": mistakes,
+    }
+    print(f"Test cost J:   {result['test_cost']:.4f}")
+    print(f"Test accuracy: {result['test_accuracy']:.2%}")
+    print(f"Mistakes:      {mistakes} out of {labels_test.shape[0]}")
+    return result
 
+
+def store_parameters(network: NeuralNetwork, output_dir: str) -> str:
+    """Step 8. Write the learned weights and biases."""
     heading(8, "Store the network parameters")
-    parameter_path = os.path.join(output_dir, "network_parameters.npz")
-    network.save(parameter_path)
-    print(f"Saved weights and biases to:\n  {parameter_path}")
+    path = os.path.join(output_dir, "network_parameters.npz")
+    network.save(path)
+    print("Saved weights and biases to outputs/network_parameters.npz")
+    return path
 
-    heading(9, "Use the trained network for an application")
-    print("The application reloads the stored parameters, then reads digits")
-    print("it has not been shown as labeled answers during this step.")
+
+def use_trained_network(parameter_path: str, data: dict[str, np.ndarray], output_dir: str) -> str:
+    """Step 9. Load the stored parameters and read new digits."""
+    heading(9, "Use the trained network")
     restored = NeuralNetwork.load(parameter_path)
-    demo_count = 20
-    demo_predictions = restored.predict(x_test[:, :demo_count])
-    application_plot = os.path.join(output_dir, "application_examples.png")
-    plot_application(
-        data["images_test"][:demo_count],
-        labels_test[:demo_count],
-        demo_predictions,
-        application_plot,
-    )
-    correct = int(np.sum(demo_predictions == labels_test[:demo_count]))
-    print(f"On the first {demo_count} test images, it read {correct} correctly.")
-    for index in range(demo_count):
-        mark = "ok" if int(demo_predictions[index]) == int(labels_test[index]) else "wrong"
+    labels = data["labels_test"][:DEMO_COUNT]
+    predictions = restored.predict(data["x_test"][:, :DEMO_COUNT])
+    figure_path = os.path.join(output_dir, "application_examples.png")
+    plot_application(data["images_test"][:DEMO_COUNT], labels, predictions, figure_path)
+    correct = int(np.sum(predictions == labels))
+    print("Loaded outputs/network_parameters.npz")
+    print(f"First {DEMO_COUNT} test images: {correct} correct.")
+    for index in range(DEMO_COUNT):
+        mark = "ok" if int(predictions[index]) == int(labels[index]) else "wrong"
         print(
-            f"  image {index:02d}: true {int(labels_test[index])}, "
-            f"read as {int(demo_predictions[index])} ({mark})"
+            f"  image {index:02d}: true {int(labels[index])}, "
+            f"read as {int(predictions[index])} ({mark})"
         )
-    print(f"Picture of those readings:\n  {application_plot}")
+    print("Figure: outputs/application_examples.png")
+    return figure_path
+
+
+def main() -> None:
+    root = os.path.dirname(os.path.abspath(__file__))
+    output_dir = os.path.join(root, "outputs")
+    os.makedirs(output_dir, exist_ok=True)
+
+    data = prepare_data()
+    describe_architecture()
+    network = initialize_parameters()
+    define_cost(network, data["x_train"], data["y_train"], int(data["labels_train"][0]))
+    define_evaluation(network, data["x_test"], data["labels_test"])
+    history, gradient_error, stopped_early = train_network(network, data, output_dir)
+    result = test_network(network, data, history)
+    parameter_path = store_parameters(network, output_dir)
+    use_trained_network(parameter_path, data, output_dir)
 
     metrics = {
-        "data_dir": OFFICIAL_DIR,
+        "dataset": "MNIST",
+        "dataset_source": DATASET_PAGE,
         "layer_sizes": LAYER_SIZES,
         "alpha": ALPHA,
         "batch_size": BATCH_SIZE,
@@ -257,19 +285,18 @@ def main() -> None:
         "stopped_early": stopped_early,
         "parameter_count": parameter_count(LAYER_SIZES),
         "gradient_check_relative_error": gradient_error,
-        "final_train_cost": history[-1]["train_cost"],
-        "final_test_cost": test_cost,
-        "final_train_accuracy": history[-1]["train_accuracy"],
-        "final_test_accuracy": test_accuracy,
-        "test_mistakes": mistakes,
+        "final_train_cost": result["train_cost"],
+        "final_test_cost": result["test_cost"],
+        "final_train_accuracy": result["train_accuracy"],
+        "final_test_accuracy": result["test_accuracy"],
+        "test_mistakes": result["mistakes"],
         "history": history,
     }
-    metrics_path = os.path.join(output_dir, "metrics.json")
-    with open(metrics_path, "w", encoding="utf-8") as handle:
+    with open(os.path.join(output_dir, "metrics.json"), "w", encoding="utf-8") as handle:
         json.dump(metrics, handle, indent=2)
     print()
-    print(f"Record of the run:\n  {metrics_path}")
-    print(f"Cost curve:\n  {cost_plot}")
+    print("Record: outputs/metrics.json")
+    print("Cost curve: outputs/cost_curve.png")
 
 
 if __name__ == "__main__":

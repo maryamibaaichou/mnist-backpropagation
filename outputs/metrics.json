@@ -1,5 +1,6 @@
 {
-  "data_dir": "/Users/maryam/Documents/deep learning/mnist",
+  "dataset": "MNIST",
+  "dataset_source": "http://yann.lecun.com/exdb/mnist/",
   "layer_sizes": [
     784,
     128,

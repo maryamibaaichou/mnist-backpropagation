@@ -1,13 +1,39 @@
-# MNIST network training
+# Handwritten digit recognition
 
-This project runs the nine network-training steps on the official MNIST digits: 60,000 training images and 10,000 test images of handwritten digits 0–9.
+A feedforward network, trained from scratch with backpropagation, that reads handwritten digits. The implementation uses NumPy for the model and Matplotlib for the figures. On the public MNIST test set it reaches **95.49%** accuracy.
 
-The pictures you can open live in `Documents/deep learning/mnist/images`. Training reads the official compressed files in that same folder:
+![Twenty test digits, with the network's reading above each image](outputs/application_examples.png)
 
-- `train-images-idx3-ubyte.gz`
-- `train-labels-idx1-ubyte.gz`
-- `t10k-images-idx3-ubyte.gz`
-- `t10k-labels-idx1-ubyte.gz`
+Green labels are correct readings. The red label is the one miss in this sample: a 5 read as a 6.
+
+## Result
+
+Training uses 60,000 images. The 10,000 test images are held out until evaluation.
+
+| | Cost J | Accuracy |
+|---|---:|---:|
+| Before training, 1,000 test images | | 11.60% |
+| Training set, after 20 passes | 0.0384 | 95.91% |
+| Test set, after 20 passes | 0.0392 | 95.49% |
+
+The test set has 451 mistakes out of 10,000. The cost falls through all 20 passes:
+
+![Training and test cost over 20 passes](outputs/cost_curve.png)
+
+Saved weights, the numeric log, and both figures are in [`outputs/`](outputs).
+
+## Dataset
+
+The data is [MNIST](http://yann.lecun.com/exdb/mnist/), the public set of handwritten digits published by Yann LeCun, Corinna Cortes, and Christopher J. C. Burges. Each example is a 28×28 grayscale image of a digit from 0 to 9.
+
+`python train.py` downloads the four official files, checks their MD5 checksums, and keeps them in `data/`. Those files are not committed.
+
+| File | Contents |
+|---|---|
+| `train-images-idx3-ubyte.gz` | 60,000 training images |
+| `train-labels-idx1-ubyte.gz` | 60,000 training labels |
+| `t10k-images-idx3-ubyte.gz` | 10,000 test images |
+| `t10k-labels-idx1-ubyte.gz` | 10,000 test labels |
 
 ## Run
 
@@ -18,30 +44,50 @@ pip install -r requirements.txt
 python train.py
 ```
 
-## The nine steps
+## Training procedure
 
-**1. Data preparation.** Each image is 28×28 grayscale. Pixel values are divided by 255 so they lie between 0 and 1, then flattened into 784 inputs. A label such as 3 becomes the target `[0, 0, 0, 1, 0, 0, 0, 0, 0, 0]`. The 10,000 test images are held out and never used to change the weights.
+The script follows nine steps. `train.py` runs them in this order.
 
-**2. Network architecture.** 784 inputs, one hidden layer of 128 sigmoid neurons, and 10 sigmoid outputs (one per digit). A neuron computes a weighted sum plus a bias, then passes it through the sigmoid.
+**1. Data preparation.** Pixel values are divided by 255, so each input lies in [0, 1], and the image is flattened to 784 numbers. The label 3 becomes the target `[0, 0, 0, 1, 0, 0, 0, 0, 0, 0]`.
 
-**3. Initialize parameters.** 101,770 weights and biases. Weights start small and random. Biases start at 0. The learning rate is `alpha = 1.0`.
+**2. Network architecture.** The network has 784 inputs, a hidden layer of 128 sigmoid units, and 10 sigmoid outputs, one per digit. A unit computes
 
-**4. Cost function.** For output neuron `j`, the error is `e_j = a_j - y_j`. The cost is `J = 1/2 * sum(e_j^2)`. On a batch, `J` is the average of the per-image costs. Training tries to make `J` smaller.
+```
+z = (weights · inputs) + bias
+a = 1 / (1 + exp(-z))
+```
 
-**5. Evaluation index.** Accuracy: the fraction of images where the largest output matches the true digit. Accuracy judges the network. The cost is what training minimizes. They are related, and they are not the same number.
+**3. Initialize parameters.** There are 101,770 weights and biases. Weights are small random values, scaled by `1/sqrt(fan-in)`. Biases start at 0. The learning rate is `alpha = 1.0`.
 
-**6. Train.** For each group of 128 images: forward pass, cost, backpropagation, then `weight <- weight - alpha * dJ/dweight`. The same rule updates the biases. This repeats for 20 passes over the training set. The gradient was checked against a numerical derivative before training (relative error about `2e-8`).
+**4. Cost function.** The error of output unit `j` is `e_j = a_j - y_j`. The cost of one image is
 
-**7. Test.** After training, the held-out images give cost `J = 0.0392` and accuracy **95.49%** (451 mistakes out of 10,000).
+```
+J = (1/2) * sum_j e_j^2
+```
 
-**8. Store the parameters.** Weights and biases are saved in `outputs/network_parameters.npz`.
+On a batch, `J` is the mean of the per-image costs. Before training, the first image (a 5) has `J = 1.29`.
 
-**9. Use the trained network.** The saved parameters are loaded again and asked to read digits. On the first 20 test images it got 19 right. The miss was a 5 read as a 6. See `outputs/application_examples.png`. The cost curve is `outputs/cost_curve.png`.
+**5. Evaluation index.** Accuracy is the share of images whose largest output equals the true digit. Training minimizes `J`. The reported result is accuracy.
 
-## Result of this run
+**6. Train the network.** Each update uses 128 images:
 
-| | Cost J | Accuracy |
-|---|---:|---:|
-| Before training (1,000 test images) | 1.29 on the first training image | 11.60% |
-| After 20 passes, training set | 0.0384 | 95.91% |
-| After 20 passes, test set | 0.0392 | 95.49% |
+1. Forward pass, producing the prediction `a`.
+2. Cost `J`.
+3. Backpropagation, producing `dJ/dW = delta * a_previous^T`.
+4. Weight update `W <- W - alpha * dJ/dW`. Biases use the same rule.
+
+The analytic gradient matches a numerical derivative to a relative error of about `2e-8`. Training then makes 20 passes over the training set.
+
+**7. Test the network.** The held-out 10,000 images give `J = 0.0392` and accuracy 95.49%.
+
+**8. Store the parameters.** Weights and biases are written to `outputs/network_parameters.npz`.
+
+**9. Use the trained network.** The file from step 8 is loaded and asked to read digits. That is the figure at the top of this page.
+
+## Layout
+
+```
+train.py                  runs the nine steps
+src/mnist_backprop/       dataset, forward pass, backpropagation
+outputs/                  weights, metrics, and figures
+```

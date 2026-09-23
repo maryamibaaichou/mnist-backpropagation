@@ -1,22 +1,18 @@
 """
 Forward pass, squared-error cost, and backpropagation.
 
-Notation matches the lecture summary. Columns are examples.
+Columns of an activation matrix are examples.
 
   e = a^L - y
-  J = (1/2) sum_j e_j^2          for one example
+  J = (1/2) sum_j e_j^2
   z^{l+1} = W^l a^l + b^l
-  a^{l+1} = f(z^{l+1})
+  a^{l+1} = sigmoid(z^{l+1})
   dJ/dW^l = delta^{l+1} (a^l)^T
   W <- W - alpha * dJ/dW
 
-The summary writes the forward weight as w_ij and the gradient index in the
-opposite order. This file follows the forward equation: row i of W^l feeds
-neuron i of the next layer, so
-
-  dJ / dW^l[i, j] = delta^{l+1}[i] * a^l[j]
-
-Bias is the same update with a constant input of 1.
+Row i of W^l feeds unit i of the next layer, so
+dJ/dW^l[i, j] = delta^{l+1}[i] * a^l[j].
+The bias uses the same update with a constant input of 1.
 """
 
 from __future__ import annotations
@@ -57,11 +53,7 @@ class NeuralNetwork:
         return weights, biases
 
     def forward(self, a: np.ndarray) -> tuple[list[np.ndarray], np.ndarray]:
-        """
-        Step 3. Push activations forward: a^1 -> a^2 -> ... -> a^L.
-
-        Returns every layer activation, including the input, and the output a^L.
-        """
+        """Propagate activations from the input through every layer. Returns all of them and a^L."""
         activations = [a]
         for weight, bias in zip(self.weights, self.biases):
             z_next = weight @ activations[-1] + bias[:, None]
@@ -70,16 +62,11 @@ class NeuralNetwork:
 
     @staticmethod
     def output_error(a_L: np.ndarray, y: np.ndarray) -> np.ndarray:
-        """Step 1. e_j = a_j^L - y_j^L."""
+        """e_j = a_j^L - y_j^L."""
         return a_L - y
 
     def cost(self, a_L: np.ndarray, y: np.ndarray) -> float:
-        """
-        Step 5. J = 1/2 sum_j e_j^2 for one example.
-
-        On a batch this returns the mean of those example costs, which is the
-        aggregate cost the lecture trains against.
-        """
+        """Mean over the batch of J = (1/2) sum_j e_j^2."""
         error = self.output_error(a_L, y)
         per_example = 0.5 * np.sum(error ** 2, axis=0)
         return float(np.mean(per_example))
@@ -88,12 +75,10 @@ class NeuralNetwork:
         self, activations: list[np.ndarray], y: np.ndarray
     ) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """
-        Steps 6 and 7. Backpropagate deltas, then dJ/dW^l = delta^{l+1} (a^l)^T.
+        Backpropagate deltas, then dJ/dW^l = delta^{l+1} (a^l)^T.
 
-        Output delta comes from the squared-error cost and the sigmoid:
-          delta^L = (a^L - y) * f'(z^L)
-        Hidden deltas come from the chain rule:
-          delta^l = f'(z^l) * (W^l)^T delta^{l+1}
+        delta^L = (a^L - y) * sigmoid'(z^L)
+        delta^l = sigmoid'(z^l) * (W^l)^T delta^{l+1}
         """
         a_L = activations[-1]
         delta = self.output_error(a_L, y) * sigmoid_prime_from_activation(a_L)
@@ -117,13 +102,13 @@ class NeuralNetwork:
     def update(
         self, grad_w: list[np.ndarray], grad_b: list[np.ndarray]
     ) -> None:
-        """Step 8. w <- w - alpha * dJ/dw, and the same rule for biases."""
+        """W <- W - alpha * dJ/dW, and the same rule for biases."""
         for layer in range(len(self.weights)):
             self.weights[layer] -= self.alpha * grad_w[layer]
             self.biases[layer] -= self.alpha * grad_b[layer]
 
     def train_batch(self, x: np.ndarray, y: np.ndarray) -> float:
-        """One pass of steps 3-8 on a batch. Returns the batch cost before the update."""
+        """Forward pass, cost, backpropagation, and one weight update. Returns J before the update."""
         activations, a_L = self.forward(x)
         batch_cost = self.cost(a_L, y)
         grad_w, grad_b = self.gradients(activations, y)
