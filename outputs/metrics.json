@@ -1,0 +1,161 @@
+{
+  "data_dir": "/Users/maryam/Documents/deep learning/mnist",
+  "layer_sizes": [
+    784,
+    128,
+    10
+  ],
+  "alpha": 1.0,
+  "batch_size": 128,
+  "epochs_run": 20,
+  "stopped_early": false,
+  "parameter_count": 101770,
+  "gradient_check_relative_error": 2.261518454273238e-08,
+  "final_train_cost": 0.03838215072330088,
+  "final_test_cost": 0.03921482616463052,
+  "final_train_accuracy": 0.95915,
+  "final_test_accuracy": 0.9549,
+  "test_mistakes": 451,
+  "history": [
+    {
+      "epoch": 1,
+      "train_cost": 0.225020319315052,
+      "test_cost": 0.11872276315898209,
+      "train_accuracy": 0.8802333333333333,
+      "test_accuracy": 0.8868
+    },
+    {
+      "epoch": 2,
+      "train_cost": 0.10656702914718257,
+      "test_cost": 0.08965252571576457,
+      "train_accuracy": 0.9002166666666667,
+      "test_accuracy": 0.9065
+    },
+    {
+      "epoch": 3,
+      "train_cost": 0.0884399558740654,
+      "test_cost": 0.07821482053976486,
+      "train_accuracy": 0.91095,
+      "test_accuracy": 0.9164
+    },
+    {
+      "epoch": 4,
+      "train_cost": 0.07893920000942223,
+      "test_cost": 0.07151008109375268,
+      "train_accuracy": 0.9168166666666666,
+      "test_accuracy": 0.9208
+    },
+    {
+      "epoch": 5,
+      "train_cost": 0.07241446234230715,
+      "test_cost": 0.06650766174258069,
+      "train_accuracy": 0.9222166666666667,
+      "test_accuracy": 0.9238
+    },
+    {
+      "epoch": 6,
+      "train_cost": 0.06747884584713837,
+      "test_cost": 0.06264349778143814,
+      "train_accuracy": 0.92725,
+      "test_accuracy": 0.9299
+    },
+    {
+      "epoch": 7,
+      "train_cost": 0.06342667131540412,
+      "test_cost": 0.059808070881461096,
+      "train_accuracy": 0.9315666666666667,
+      "test_accuracy": 0.9313
+    },
+    {
+      "epoch": 8,
+      "train_cost": 0.060017284239730115,
+      "test_cost": 0.05688334337262956,
+      "train_accuracy": 0.93445,
+      "test_accuracy": 0.9347
+    },
+    {
+      "epoch": 9,
+      "train_cost": 0.05711873591054067,
+      "test_cost": 0.05447800072348192,
+      "train_accuracy": 0.9374833333333333,
+      "test_accuracy": 0.9388
+    },
+    {
+      "epoch": 10,
+      "train_cost": 0.054520847663411774,
+      "test_cost": 0.05228587621816323,
+      "train_accuracy": 0.9411666666666667,
+      "test_accuracy": 0.9402
+    },
+    {
+      "epoch": 11,
+      "train_cost": 0.052147062507101063,
+      "test_cost": 0.050474550478745585,
+      "train_accuracy": 0.9431666666666667,
+      "test_accuracy": 0.9416
+    },
+    {
+      "epoch": 12,
+      "train_cost": 0.05006686556418778,
+      "test_cost": 0.049519341589306404,
+      "train_accuracy": 0.94575,
+      "test_accuracy": 0.9439
+    },
+    {
+      "epoch": 13,
+      "train_cost": 0.048126914152993604,
+      "test_cost": 0.04694071662946376,
+      "train_accuracy": 0.9479666666666666,
+      "test_accuracy": 0.9466
+    },
+    {
+      "epoch": 14,
+      "train_cost": 0.04645685041317709,
+      "test_cost": 0.04536922216944279,
+      "train_accuracy": 0.9502666666666667,
+      "test_accuracy": 0.9471
+    },
+    {
+      "epoch": 15,
+      "train_cost": 0.04486268239064477,
+      "test_cost": 0.04405470176457591,
+      "train_accuracy": 0.9517333333333333,
+      "test_accuracy": 0.9494
+    },
+    {
+      "epoch": 16,
+      "train_cost": 0.043388301598605676,
+      "test_cost": 0.04369773835187282,
+      "train_accuracy": 0.95325,
+      "test_accuracy": 0.9496
+    },
+    {
+      "epoch": 17,
+      "train_cost": 0.042011609725888126,
+      "test_cost": 0.04220764960564738,
+      "train_accuracy": 0.9548833333333333,
+      "test_accuracy": 0.9517
+    },
+    {
+      "epoch": 18,
+      "train_cost": 0.04069169207474959,
+      "test_cost": 0.040918495573251334,
+      "train_accuracy": 0.956,
+      "test_accuracy": 0.9519
+    },
+    {
+      "epoch": 19,
+      "train_cost": 0.03948586719483184,
+      "test_cost": 0.03986243508181023,
+      "train_accuracy": 0.9573,
+      "test_accuracy": 0.9545
+    },
+    {
+      "epoch": 20,
+      "train_cost": 0.03838215072330088,
+      "test_cost": 0.03921482616463052,
+      "train_accuracy": 0.95915,
+      "test_accuracy": 0.9549
+    }
+  ]
+}
